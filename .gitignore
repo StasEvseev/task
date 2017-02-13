@@ -1,0 +1,12 @@
+# idea
+.idea
+
+# python stuffs
+*.pyc
+
+# cache
+cache
+cache2
+
+# db staff
+db.sqlite3

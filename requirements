@@ -1,0 +1,5 @@
+requests==2.13.0
+django==1.10.5
+djangorestframework==3.5.4
+pillow==4.0.0
+CacheControl==0.12.0
