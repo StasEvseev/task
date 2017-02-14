@@ -12,6 +12,7 @@ class StorageConfig(AppConfig):
     def ready(self):
         t0 = time.time()
         self.storage = StorageCSVRecords(url=DOCSHEETS_URL)
+        # self.storage.init_cache()
         print("Boot times", time.time() - t0)
 
     def get_storage(self):

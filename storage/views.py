@@ -14,11 +14,12 @@ logger = logging.getLogger(__name__)
 storage = apps.get_app_config('storage').get_storage()
 
 
-class MyViewSet(ViewSet):
+class StorageViewSet(ViewSet):
     def list(self, request):
         try:
             data = storage.get_csv()
-        except ServiceException:
+        except ServiceException as e:
+            logger.exception(str(e))
             raise exceptions.APIException()
 
         serializer = StorageSerializer(data, many=True)
@@ -36,7 +37,8 @@ class MyViewSet(ViewSet):
         index -= 1
         try:
             data = storage.get_csv()
-        except ServiceException:
+        except ServiceException as e:
+            logger.exception(str(e))
             raise exceptions.APIException()
 
         try:
