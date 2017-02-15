@@ -4,6 +4,7 @@ import time
 
 from django.core.cache import cache
 
+from storage.exceptions import StoreException
 from storage.service import load_image, load_csv, rows_of_csv
 
 logger = logging.getLogger(__name__)
@@ -29,6 +30,10 @@ class StorageCSVRecords(object):
 
         result = []
         for row in rows:
+            if 'image' not in row:
+                raise StoreException("Structure of CSV don't have a `image`"
+                                     " column.")
+
             image_url = row['image']
             response, image_content_type = load_image(url=image_url)
 
@@ -55,6 +60,9 @@ class AsyncStorageCSVRecords(StorageCSVRecords):
     Asyncronous version of StorageCSVRecords
     """
     def init_cache(self, csvfile=None):
+        raise NotImplementedError("AsyncStorageCSVRecords has a errors, "
+                                  "please not use it")
+
         async def main(urls, loop):
             coroutines = [asyncio.coroutine(load_image)(url) for url in urls]
             completed, pending = await asyncio.wait(coroutines, timeout=5000,

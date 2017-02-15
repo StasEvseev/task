@@ -6,7 +6,7 @@ from rest_framework import exceptions
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 
-from storage.exceptions import ServiceException
+from storage.exceptions import BaseStoreException
 from storage.serializers import StorageSerializer
 
 logger = logging.getLogger(__name__)
@@ -18,7 +18,7 @@ class StorageViewSet(ViewSet):
     def list(self, request):
         try:
             data = storage.get_csv()
-        except ServiceException as e:
+        except BaseStoreException as e:
             logger.exception(str(e))
             raise exceptions.APIException()
 
@@ -37,7 +37,7 @@ class StorageViewSet(ViewSet):
         index -= 1
         try:
             data = storage.get_csv()
-        except ServiceException as e:
+        except BaseStoreException as e:
             logger.exception(str(e))
             raise exceptions.APIException()
 

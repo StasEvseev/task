@@ -1,3 +1,10 @@
+class BaseStoreException(Exception):
+    pass
 
-class ServiceException(Exception):
+
+class ServiceException(BaseStoreException):
+    pass
+
+
+class StoreException(BaseStoreException):
     pass
