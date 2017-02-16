@@ -1,4 +1,3 @@
-import csv
 import io
 import logging
 
@@ -70,7 +69,7 @@ def load_csv(url=None) -> tuple:
 
     t0 = time.time()
     try:
-        response = cached_sess.get(url=url)
+        response = cached_sess.get(url=url, stream=True)
     except requests.exceptions.RequestException as e:
         logger.exception("Check connect to %s, Detail (%s)", url, str(e))
         raise ServiceException("Something went wrong")
@@ -88,12 +87,3 @@ def load_csv(url=None) -> tuple:
                  response.from_cache, time.time() - t0)
 
     return io.StringIO(response.text), response
-
-
-def rows_of_csv(file):
-    try:
-        return list(csv.DictReader(file))
-    except csv.Error as e:
-        message = "File has a wrong structure %s" % str(e)
-        logger.exception(message)
-        raise ServiceException(message)

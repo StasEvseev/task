@@ -1,11 +1,13 @@
-import asyncio
+import csv
 import logging
-import time
 
+from django.core import signing
 from django.core.cache import cache
+from django.core.signing import BadSignature
+from django.urls import reverse
 
 from storage.exceptions import StoreException
-from storage.service import load_image, load_csv, rows_of_csv
+from storage.service import load_image, load_csv
 
 logger = logging.getLogger(__name__)
 
@@ -14,36 +16,21 @@ class StorageCSVRecords(object):
     """
     Object which responsibility is keep csv records in cache and actualizing it
     when it required.
+    Checks corrections of image urls into CSV by demand.
     """
     def __init__(self, url):
         self.url = url
 
-    def init_cache(self, csvfile=None):
-        logger.debug("Initialization of cache.")
-        t0 = time.time()
+    def is_valid(self, image_url: str) -> bool:
+        is_valid = cache.get(image_url)
 
-        if not csvfile:
-            csvfile, response = load_csv(url=self.url)
+        if is_valid is None:
+            response, content_type = load_image(url=image_url)
 
-        rows = rows_of_csv(csvfile)
-        logger.debug("CSV file has a `%s` lines", len(rows))
+            is_valid = content_type is not None
+            cache.set(image_url, is_valid)
 
-        result = []
-        for row in rows:
-            if 'image' not in row:
-                raise StoreException("Structure of CSV don't have a `image`"
-                                     " column.")
-
-            image_url = row['image']
-            response, image_content_type = load_image(url=image_url)
-
-            if not image_content_type:
-                row['image'] = None
-
-            result.append(row)
-        cache.set(self.url, result)
-
-        logger.debug("Initialization take `%s`", time.time() - t0)
+        return is_valid
 
     def get_csv(self):
         csvfile, response = load_csv(url=self.url)
@@ -51,50 +38,34 @@ class StorageCSVRecords(object):
         if response.from_cache and cache.get(self.url):
             return cache.get(self.url)
         else:
-            self.init_cache(csvfile=csvfile)
-            return cache.get(self.url)
+            rows = list(self.parse_csv(csvfile))
+            cache.set(self.url, rows)
+            return rows
 
+    @classmethod
+    def unwrap_url(cls, signurl: str) -> str:
+        try:
+            image_url = signing.loads(signurl)
+        except BadSignature as e:
+            logger.error(str(e))
+            raise StoreException('Bad signature')
 
-class AsyncStorageCSVRecords(StorageCSVRecords):
-    """
-    Asyncronous version of StorageCSVRecords
-    """
-    def init_cache(self, csvfile=None):
-        raise NotImplementedError("AsyncStorageCSVRecords has a errors, "
-                                  "please not use it")
+        return image_url
 
-        async def main(urls, loop):
-            coroutines = [asyncio.coroutine(load_image)(url) for url in urls]
-            completed, pending = await asyncio.wait(coroutines, timeout=5000,
-                                                    loop=loop)
-            return completed
+    @classmethod
+    def wrap_url(cls, image_url: str) -> str:
+        url = reverse('image-proxy')
+        signurl = signing.dumps(image_url)
 
-        def load_images(urls):
-            loop = asyncio.new_event_loop()
-            future_task = main(urls, loop)
-            res = loop.run_until_complete(future_task)
-            return res
+        return "%s?url=%s" % (url, signurl)
 
-        logger.debug("Initialization of cache.")
-        t0 = time.time()
+    def parse_csv(self, file):
+        reader = csv.DictReader(file)
 
-        if not csvfile:
-            csvfile, response = load_csv(url=self.url)
+        for row in reader:
+            image_url = row['image']
+            if image_url:
+                image_url = self.wrap_url(image_url)
 
-        rows = rows_of_csv(csvfile)
-        logger.debug("CSV file has a `%s` lines", len(rows))
-
-        urls_images = [row['image'] for row in rows]
-        images = load_images(urls_images)
-
-        result = []
-        for image, row in zip(images, rows):
-            response, image_content_type = image.result()
-
-            if not image_content_type:
-                row['image'] = None
-
-            result.append(row)
-        cache.set(self.url, result)
-
-        logger.debug("Initialization take `%s`", time.time() - t0)
+            row['image'] = image_url
+            yield row
