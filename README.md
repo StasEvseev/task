@@ -16,7 +16,7 @@ This implementation includes:
  - Checking `image` field has correct data(load it and checks 
  is it image or not)
  
- **Configuration**
+**Configuration**
  
  Project wrote and has been tested on `Python 3.5+`.
  By default application runs on development configuration. 
